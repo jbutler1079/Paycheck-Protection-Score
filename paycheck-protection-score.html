@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paycheck Protection Score™ — HPHP Plan Design Equity Analyzer</title>
+</head>
+<body style="margin:0;padding:0;background:#0b1020;">
+<!-- Paycheck Protection Score™ — HPHP Plan Design Equity Analyzer -->
+<div id="hphp-pps-app" class="pps">
+  <style>
+    :root{
+      --pps-bg:#0b1020; --pps-panel:#0f1a33; --pps-panel-2:#101f3d;
+      --pps-border:rgba(255,255,255,.12);
+      --pps-text:rgba(255,255,255,.92); --pps-muted:rgba(255,255,255,.72); --pps-faint:rgba(255,255,255,.55);
+      --pps-accent:#5bd6ff; --pps-accent-2:#8b5bff;
+      --pps-danger:#ff5b7a; --pps-warn:#ffcc66; --pps-good:#53f0b5;
+      --pps-maxw:980px; --pps-radius:14px; --pps-shadow:0 10px 30px rgba(0,0,0,.35);
+      --pps-font:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    #hphp-pps-app.pps{
+      font-family:var(--pps-font); color:var(--pps-text);
+      background:radial-gradient(1200px 800px at 20% 0%, rgba(91,214,255,.12), transparent 55%),
+                 radial-gradient(1000px 700px at 80% 10%, rgba(139,91,255,.10), transparent 55%),
+                 var(--pps-bg);
+      border:1px solid var(--pps-border); border-radius:var(--pps-radius); box-shadow:var(--pps-shadow);
+      max-width:var(--pps-maxw); margin:24px auto; overflow:hidden;
+    }
+    .pps__header{padding:18px 18px 14px;border-bottom:1px solid var(--pps-border);
+      background:linear-gradient(180deg, rgba(255,255,255,.04), transparent);}
+    .pps__title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .pps__title h2{margin:0;font-size:20px;letter-spacing:.2px;}
+    .pps__title .tag{font-size:12px;color:var(--pps-muted);border:1px solid var(--pps-border);
+      padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);}
+    .pps__sub{margin-top:8px;color:var(--pps-muted);font-size:13px;line-height:1.35;}
+    .pps__grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;padding:14px;}
+    @media (max-width:920px){.pps__grid{grid-template-columns:1fr;}}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04), transparent 55%), var(--pps-panel);
+      border:1px solid var(--pps-border);border-radius:var(--pps-radius);padding:14px;}
+    .card h3{margin:0 0 10px;font-size:14px;color:var(--pps-text);letter-spacing:.25px;}
+    .hint{color:var(--pps-faint);font-size:12px;margin-top:-6px;margin-bottom:10px;line-height:1.3;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    @media (max-width:560px){.row{grid-template-columns:1fr;}}
+    label{display:block;font-size:12px;color:var(--pps-muted);margin-bottom:6px;}
+    input, textarea{
+      width:100%;background:var(--pps-panel-2);border:1px solid var(--pps-border);color:var(--pps-text);
+      border-radius:10px;padding:10px;outline:none;font-size:14px;box-sizing:border-box;}
+    input::placeholder{color:rgba(255,255,255,.35);}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    .btn{appearance:none;border:1px solid var(--pps-border);background:rgba(255,255,255,.04);
+      color:var(--pps-text);border-radius:12px;padding:10px 12px;font-weight:650;cursor:pointer;
+      transition:transform .05s ease,border-color .15s ease,background .15s ease;}
+    .btn:hover{border-color:rgba(91,214,255,.45);background:rgba(91,214,255,.08);}
+    .btn:active{transform:translateY(1px);}
+    .btn.primary{border-color:rgba(91,214,255,.55);
+      background:linear-gradient(90deg, rgba(91,214,255,.16), rgba(139,91,255,.12));}
+    .btn.ghost{color:var(--pps-muted);}
+    .divider{height:1px;background:var(--pps-border);margin:12px 0;}
+    .results{padding:14px;border-top:1px solid var(--pps-border);
+      background:linear-gradient(180deg, rgba(255,255,255,.02), transparent 55%);}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+    @media (max-width:920px){.kpis{grid-template-columns:1fr;}}
+    .kpi{border:1px solid var(--pps-border);border-radius:var(--pps-radius);padding:12px;background:rgba(255,255,255,.03);}
+    .kpi .label{color:var(--pps-muted);font-size:12px;}
+    .kpi .value{font-size:22px;font-weight:800;margin-top:6px;letter-spacing:.2px;}
+    .kpi .note{color:var(--pps-faint);font-size:12px;margin-top:6px;line-height:1.3;}
+    table{width:100%;border-collapse:collapse;border-radius:var(--pps-radius);overflow:hidden;
+      border:1px solid var(--pps-border);background:rgba(0,0,0,.12);}
+    th, td{padding:10px;border-bottom:1px solid var(--pps-border);font-size:13px;vertical-align:top;}
+    th{text-align:left;color:var(--pps-muted);font-weight:700;background:rgba(255,255,255,.03);}
+    tr:last-child td{border-bottom:none;}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--pps-border);
+      font-size:12px;color:var(--pps-muted);background:rgba(255,255,255,.03);}
+    .muted{color:var(--pps-muted);} .small{font-size:12px;color:var(--pps-faint);}
+    .ftibox{display:flex;align-items:center;gap:10px;margin-top:6px;}
+    .bar{height:10px;flex:1;border-radius:999px;border:1px solid var(--pps-border);
+      background:rgba(255,255,255,.03);overflow:hidden;}
+    .bar>span{display:block;height:100%;width:0%;
+      background:linear-gradient(90deg, rgba(83,240,181,.9), rgba(255,204,102,.9), rgba(255,91,122,.9));}
+    .footer-note{margin-top:10px;color:var(--pps-faint);font-size:12px;line-height:1.35;}
+  </style>
+
+  <div class="pps__header">
+    <div class="pps__title">
+      <h2>Paycheck Protection Score™</h2>
+      <span class="tag">Tier Two vs Tier One equity impact • v1</span>
+    </div>
+    <div class="pps__sub">Estimates out-of-pocket affordability by income band and household type using simple plan math. Defaults included.</div>
+  </div>
+
+  <div class="pps__grid">
+    <div class="card">
+      <h3>Workforce Inputs</h3>
+      <div class="hint">Enter 4 annual wage bands. v1 assumes bands are equally weighted.</div>
+      <div class="row">
+        <div><label>Band 1 wage (lowest) — annual $</label><input id="w1" type="number" value="35000" step="1000"></div>
+        <div><label>Band 2 wage — annual $</label><input id="w2" type="number" value="50000" step="1000"></div>
+        <div><label>Band 3 wage — annual $</label><input id="w3" type="number" value="70000" step="1000"></div>
+        <div><label>Band 4 wage (highest) — annual $</label><input id="w4" type="number" value="95000" step="1000"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3>Scenario Allowed-Cost Assumptions</h3>
+      <div class="hint">Editable defaults (no claims). One allowed-cost total per scenario.</div>
+      <div class="row">
+        <div><label>Low use — allowed $/year</label><input id="sLow" type="number" value="1200" step="50"></div>
+        <div><label>Moderate use — allowed $/year</label><input id="sMod" type="number" value="5500" step="50"></div>
+        <div><label>High / chronic — allowed $/year</label><input id="sHigh" type="number" value="18000" step="100"></div>
+        <div><label>Family year — allowed $/year</label><input id="sFam" type="number" value="12000" step="100"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3>Scoring Preferences</h3>
+      <div class="row">
+        <div><label>Low threshold (% of wages)</label><input id="t1" type="number" value="2" step="0.25"><div class="small">Default 2%</div></div>
+        <div><label>Moderate threshold (% of wages)</label><input id="t2" type="number" value="5" step="0.25"><div class="small">Default 5%</div></div>
+        <div><label>High threshold (% of wages)</label><input id="t3" type="number" value="10" step="0.25"><div class="small">Default 10%</div></div>
+        <div><label>Scenario weights (sum 100)</label><input id="weights" type="text" value="Low=25, Moderate=35, High=25, Family=15"><div class="small">Used for overall FTI/PPS.</div></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnCalc">Calculate</button>
+        <button class="btn ghost" id="btnReset">Reset</button>
+      </div>
+      <div class="footer-note">v1 uses simplified OOP: deductible + coinsurance + optional annual copays, capped at MOOP, minus employer HSA/HRA.</div>
+    </div>
+
+    <div class="card">
+      <h3>Plan Inputs</h3>
+      <div class="hint">Enter Tier Two (Traditional) and Tier One (HPHP). Copays are optional; set to 0 if not used.</div>
+
+      <div class="row">
+        <div><label>Coinsurance % (after deductible)</label><input id="coins" type="number" value="20" min="0" max="100"></div>
+        <div><label>Employer HSA/HRA (single) — $/year</label><input id="hsaS" type="number" value="0" step="50"></div>
+        <div><label>Employer HSA/HRA (family) — $/year</label><input id="hsaF" type="number" value="0" step="50"></div>
+        <div><label>Copays total per year (optional) — $</label><input id="copaysYear" type="number" value="0" step="25"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="card" style="padding:12px;">
+          <h3>Tier Two (Traditional)</h3>
+          <div class="row">
+            <div><label>Deductible (single)</label><input id="t2DedS" type="number" value="3000" step="50"></div>
+            <div><label>Deductible (family)</label><input id="t2DedF" type="number" value="6000" step="50"></div>
+            <div><label>MOOP (single)</label><input id="t2MoopS" type="number" value="7000" step="50"></div>
+            <div><label>MOOP (family)</label><input id="t2MoopF" type="number" value="14000" step="50"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:12px;">
+          <h3>Tier One (HPHP)</h3>
+          <div class="row">
+            <div><label>Deductible (single)</label><input id="t1DedS" type="number" value="1500" step="50"></div>
+            <div><label>Deductible (family)</label><input id="t1DedF" type="number" value="3000" step="50"></div>
+            <div><label>MOOP (single)</label><input id="t1MoopS" type="number" value="4500" step="50"></div>
+            <div><label>MOOP (family)</label><input id="t1MoopF" type="number" value="9000" step="50"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note">If Tier One vs Tier Two differs by discounts (e.g., 70% vs 30% off billed), add v2 billed→allowed conversion per tier.</div>
+    </div>
+  </div>
+
+  <div class="results" id="results" style="display:none;">
+    <div class="kpis">
+      <div class="kpi">
+        <div class="label">PPS — Tier Two</div>
+        <div class="value" id="pps2">—</div>
+        <div class="note">Higher is better (less toxicity).</div>
+        <div class="ftibox"><span class="pill">FTI</span><div class="bar"><span id="bar2"></span></div><span class="small" id="fti2">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="label">PPS — Tier One</div>
+        <div class="value" id="pps1">—</div>
+        <div class="note">Estimated protection under HPHP model.</div>
+        <div class="ftibox"><span class="pill">FTI</span><div class="bar"><span id="bar1"></span></div><span class="small" id="fti1">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="label">Tier One Relief</div>
+        <div class="value" id="relief">—</div>
+        <div class="note">Reduction in overall toxicity vs Tier Two.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <h3 style="margin:0 0 8px;font-size:14px;">Wage Burden by Income Band &amp; Scenario</h3>
+      <div class="small" style="margin-bottom:8px;">Each cell shows Tier Two → Tier One wage burden %.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Income band</th><th>Low</th><th>Moderate</th><th>High</th><th>Family</th><th>Ded % (S)</th><th>MOOP % (S)</th>
+          </tr>
+        </thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+      <div class="footer-note" id="narrative"></div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const $ = function(id){ return document.getElementById(id); };
+      const defaults = {};
+      ["w1","w2","w3","w4","sLow","sMod","sHigh","sFam","t1","t2","t3","weights","coins","hsaS","hsaF","copaysYear",
+       "t2DedS","t2DedF","t2MoopS","t2MoopF","t1DedS","t1DedF","t1MoopS","t1MoopF"].forEach(function(id){ defaults[id] = $(id).value; });
+
+      function parseWeights(str){
+        var out={Low:25,Moderate:35,High:25,Family:15};
+        try{
+          str.split(",").map(function(s){ return s.trim(); }).forEach(function(pair){
+            var parts=pair.split("=").map(function(x){ return x.trim(); });
+            var k=parts[0], v=parts[1];
+            if(!k||v===undefined) return;
+            var num=Number(v); if(!isFinite(num)) return;
+            var key=k.toLowerCase();
+            if(key.indexOf("low")===0) out.Low=num;
+            else if(key.indexOf("mod")===0) out.Moderate=num;
+            else if(key.indexOf("high")===0) out.High=num;
+            else if(key.indexOf("fam")===0) out.Family=num;
+          });
+        }catch(e){}
+        var sum=out.Low+out.Moderate+out.High+out.Family;
+        if(sum>0 && sum!==100){ out.Low=out.Low/sum*100; out.Moderate=out.Moderate/sum*100; out.High=out.High/sum*100; out.Family=out.Family/sum*100; }
+        return out;
+      }
+
+      function clamp(n,min,max){ return Math.min(max, Math.max(min,n)); }
+      function formatPct(x){ return (x*100).toFixed(1)+"%"; }
+      function formatScore(x){ return Math.round(x).toString(); }
+
+      function lerp(x,x0,x1,y0,y1){ if(x1===x0) return y1; var t=(x-x0)/(x1-x0); return y0+t*(y1-y0); }
+      function piecewiseFTI(burdenPct,a,b,c){
+        var x=Math.max(0, burdenPct); var cap=20; var xx=Math.min(x,cap);
+        if(xx<=a) return lerp(xx,0,a,0,15);
+        if(xx<=b) return lerp(xx,a,b,15,40);
+        if(xx<=c) return lerp(xx,b,c,40,75);
+        return lerp(xx,c,cap,75,100);
+      }
+
+      function estimateOOP(allowed,ded,coinsPct,moop,hsa,copaysYear){
+        var coins=coinsPct/100;
+        var copays=Math.max(0, Number(copaysYear)||0);
+        var remaining=Math.max(0, allowed);
+        var toDed=Math.min(remaining, ded);
+        var afterDed=Math.max(0, remaining-toDed);
+        var coinsPay=afterDed*coins;
+        var oop=toDed+coinsPay+copays;
+        oop=Math.min(oop, moop);
+        oop=Math.max(0, oop-hsa);
+        return oop;
+      }
+
+      function overallFTIForTier(tier,wages,scenarios,thr,weights,coinsPct,hsaS,hsaF,copaysYear){
+        var out={band:[], overallFTI:0};
+        var total=0;
+        wages.forEach(function(w){
+          var b={wage:w, items:{}};
+          var low=estimateOOP(scenarios.Low,tier.dedS,coinsPct,tier.moopS,hsaS,copaysYear);
+          var mod=estimateOOP(scenarios.Moderate,tier.dedS,coinsPct,tier.moopS,hsaS,copaysYear);
+          var high=estimateOOP(scenarios.High,tier.dedS,coinsPct,tier.moopS,hsaS,copaysYear);
+          var fam=estimateOOP(scenarios.Family,tier.dedF,coinsPct,tier.moopF,hsaF,copaysYear);
+          var bLow=(w>0)?(low/w):0, bMod=(w>0)?(mod/w):0, bHigh=(w>0)?(high/w):0, bFam=(w>0)?(fam/w):0;
+          b.items.Low={oop:low, burden:bLow};
+          b.items.Moderate={oop:mod, burden:bMod};
+          b.items.High={oop:high, burden:bHigh};
+          b.items.Family={oop:fam, burden:bFam};
+          var fLow=piecewiseFTI(bLow*100,thr.a,thr.b,thr.c);
+          var fMod=piecewiseFTI(bMod*100,thr.a,thr.b,thr.c);
+          var fHigh=piecewiseFTI(bHigh*100,thr.a,thr.b,thr.c);
+          var fFam=piecewiseFTI(bFam*100,thr.a,thr.b,thr.c);
+          var bandFTI=fLow*(weights.Low/100)+fMod*(weights.Moderate/100)+fHigh*(weights.High/100)+fFam*(weights.Family/100);
+          b.bandFTI=bandFTI; b.dedPct=(w>0)?(tier.dedS/w):0; b.moopPct=(w>0)?(tier.moopS/w):0;
+          total+=bandFTI; out.band.push(b);
+        });
+        out.overallFTI = total / wages.length;
+        return out;
+      }
+
+      function calc(){
+        var wages=[Number($("w1").value),Number($("w2").value),Number($("w3").value),Number($("w4").value)].map(function(x){ return Math.max(0,x||0); });
+        var scenarios={Low:Number($("sLow").value)||0,Moderate:Number($("sMod").value)||0,High:Number($("sHigh").value)||0,Family:Number($("sFam").value)||0};
+        var thr={a:Number($("t1").value)||2,b:Number($("t2").value)||5,c:Number($("t3").value)||10};
+        var weights=parseWeights($("weights").value);
+        var coinsPct=clamp(Number($("coins").value)||20,0,100);
+        var hsaS=Math.max(0, Number($("hsaS").value)||0);
+        var hsaF=Math.max(0, Number($("hsaF").value)||0);
+        var copaysYear=Math.max(0, Number($("copaysYear").value)||0);
+        var tier2={dedS:Math.max(0,Number($("t2DedS").value)||0),dedF:Math.max(0,Number($("t2DedF").value)||0),moopS:Math.max(0,Number($("t2MoopS").value)||0),moopF:Math.max(0,Number($("t2MoopF").value)||0)};
+        var tier1={dedS:Math.max(0,Number($("t1DedS").value)||0),dedF:Math.max(0,Number($("t1DedF").value)||0),moopS:Math.max(0,Number($("t1MoopS").value)||0),moopF:Math.max(0,Number($("t1MoopF").value)||0)};
+        var res2=overallFTIForTier(tier2,wages,scenarios,thr,weights,coinsPct,hsaS,hsaF,copaysYear);
+        var res1=overallFTIForTier(tier1,wages,scenarios,thr,weights,coinsPct,hsaS,hsaF,copaysYear);
+        var pps2=100-res2.overallFTI, pps1=100-res1.overallFTI;
+        $("pps2").textContent=formatScore(pps2); $("pps1").textContent=formatScore(pps1);
+        $("fti2").textContent=formatScore(res2.overallFTI); $("fti1").textContent=formatScore(res1.overallFTI);
+        var relief=(res2.overallFTI>0)?((res2.overallFTI-res1.overallFTI)/res2.overallFTI):0;
+        $("relief").textContent=(relief*100).toFixed(1)+"%";
+        $("bar2").style.width=clamp(res2.overallFTI,0,100)+"%";
+        $("bar1").style.width=clamp(res1.overallFTI,0,100)+"%";
+        var names=["Band 1 (lowest)","Band 2","Band 3","Band 4 (highest)"];
+        var keys=["Low","Moderate","High","Family"];
+        var html="";
+        res2.band.forEach(function(b2,i){
+          var b1=res1.band[i];
+          html+="<tr>";
+          html+="<td><strong>"+names[i]+"</strong><div class=\"small\">$"+Math.round(b2.wage).toLocaleString()+"/yr</div></td>";
+          keys.forEach(function(k){ html+="<td>"+formatPct(b2.items[k].burden)+" <span class=\"muted\">\u2192</span> "+formatPct(b1.items[k].burden)+"</td>"; });
+          html+="<td>"+formatPct(b2.dedPct)+" <span class=\"muted\">\u2192</span> "+formatPct(b1.dedPct)+"</td>";
+          html+="<td>"+formatPct(b2.moopPct)+" <span class=\"muted\">\u2192</span> "+formatPct(b1.moopPct)+"</td>";
+          html+="</tr>";
+        });
+        $("tblBody").innerHTML=html;
+        var low=res2.band[0].items.Moderate.burden*100, low1=res1.band[0].items.Moderate.burden*100;
+        var lastIdx=res2.band.length-1;
+        var high=res2.band[lastIdx].items.Moderate.burden*100, high1=res1.band[lastIdx].items.Moderate.burden*100;
+        $("narrative").textContent =
+          "In a \"Moderate use\" year, Band 1 spends about "+low.toFixed(1)+"% of wages in Tier Two vs "+low1.toFixed(1)+"% in Tier One. "+
+          "For Band 4, the same year is about "+high.toFixed(1)+"% \u2192 "+high1.toFixed(1)+"%. "+
+          "Overall, Tier One improves Paycheck Protection by "+Math.max(0,(pps1-pps2)).toFixed(0)+" points.";
+        $("results").style.display="block";
+        $("results").scrollIntoView({behavior:"smooth", block:"start"});
+      }
+
+      function reset(){ Object.keys(defaults).forEach(function(id){ $(id).value=defaults[id]; }); $("results").style.display="none"; }
+      $("btnCalc").addEventListener("click", calc);
+      $("btnReset").addEventListener("click", reset);
+    })();
+  </script>
+</div>
+</body>
+</html>
